@@ -1,53 +1,62 @@
-import time
 import requests
 import json
-
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
 
 def extract_schedule(info):
+    schedule = {}
+
     (time, local) = info.split('-')[0:2]
     (day, start) = time.split(' ')[0:2]
 
-    schedule = {}
-    schedule['dia'] = day.strip()
-    schedule['inicio'] = start.strip()
-    schedule['sala'] = local.split(':')[-1].strip()
+    schedule['day'] = day.strip().upper()
+    schedule['time'] = start.strip()
+    schedule['location'] = local.split(':')[-1].strip()
 
     return schedule
 
 
-def build_course(html_data):
+def build_course(data):
     course = {}
 
-    data = BeautifulSoup(html_data, 'html.parser')
-
-    course['curso'] = data.select_one('h2').get_text()
+    course['title'] = data.select_one('h2').get_text().strip()
 
     con = ([p.get_text(strip=True, separator="%") for p in data.select('li')])
 
+    if(len(con) < 5):
+        con.insert(1, 'SEM PROFESSOR')
+
     course['ch'] = con[0][-2:]
-    course['professor'] = con[1]
-    course['faltas'] = con[4].split('%')[0]
+    course['instructor'] = con[1]
+    course['absences'] = con[4].split('%')[0]
 
     info = con[2].split('%')
-    class_info = []
 
-    for i in info:
-        class_info.append(extract_schedule(i))
-
-    course['schedule'] = class_info
+    course['schedule'] = [extract_schedule(i) for i in info]
 
     return course
 
 
-def save_file(data, filename):
-    with open(filename, 'w', encoding='utf-8') as jp:
-        js = json.dumps(data, indent=4)
-        jp.write(js)
+def extract_courses(html_data):
+    data = BeautifulSoup(html_data, 'html.parser')
+    info = data.select('.panel')
 
-course_data = ' '
-courses = []
-courses.append(build_course(course_data))
-save_file(courses, 'courses.json')
+    courses = [build_course(i) for i in info]
+
+    return courses
+
+
+def extract_profile(html_data):
+    profile = {}
+
+    data = BeautifulSoup(html_data, 'html.parser')
+
+    profile['name'] = data.select_one('h2').get_text().strip()
+
+    info = ([p.get_text(strip=True) for p in data.select('span')])
+
+    profile['registration'] = info[0]
+    profile['program'] = info[1].split('-')[1].strip()
+    profile['cre'] = info[-3]
+    profile['cumulative_ch'] = info[-1]
+
+    return profile
