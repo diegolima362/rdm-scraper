@@ -32,7 +32,6 @@ A step by step series of examples that tell you how to get a development env run
 
 ### Install the following Python libraries:
 
- * **requests2** - Requests is the only Non-GMO HTTP library for Python, safe for human consumption;
  * **beautfulsoup4** - Library for pulling data out of HTML and XML files;
  * **selenium** - An API to write functional/acceptance tests using Selenium WebDriver.
 
