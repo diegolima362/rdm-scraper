@@ -1,6 +1,5 @@
-import requests
-import json
 from bs4 import BeautifulSoup
+
 
 def extract_schedule(info):
     schedule = {}
@@ -16,13 +15,11 @@ def extract_schedule(info):
 
 
 def build_course(data):
-    course = {}
-
-    course['title'] = data.select_one('h2').get_text().strip()
+    course = {'title': data.select_one('h2').get_text().strip()}
 
     con = ([p.get_text(strip=True, separator="%") for p in data.select('li')])
 
-    if(len(con) < 5):
+    if len(con) < 5:
         con.insert(1, 'SEM PROFESSOR')
 
     course['ch'] = con[0][-2:]
@@ -56,7 +53,7 @@ def extract_profile(html_data):
 
     profile['registration'] = info[0]
     profile['program'] = info[1].split('-')[1].strip()
-    profile['cre'] = info[-3]
+    profile['cra'] = info[-3]
     profile['cumulative_ch'] = info[-1]
 
     return profile
