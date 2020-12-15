@@ -1,81 +1,73 @@
 import json
 
-from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
+import requests
+from bs4 import BeautifulSoup
 
 import parse_data as parser
 
 
-def save_file(info, filename):
-    with open(filename, 'w') as jp:
-        json.dump(info, jp, ensure_ascii=False, indent=4)
+def request_dom(user, password):
+    base_url = "https://academico.uepb.edu.br/ca/index.php/alunos"
+    login_url = "https://academico.uepb.edu.br/ca/index.php/usuario/autenticar"
+
+    form_data = {
+        'nome_usuario': user,
+        'senha_usuario': password
+    }
+
+    with requests.Session() as s:
+        r = s.get(base_url + '/index')
+
+        print('> login')
+        r = s.post(login_url, data=form_data)
+
+        error1 = '<p>Usuário ou senha não conferem.</p>'
+        error2 = '<p>Matrícula ou senha não conferem.</p>'
+
+        if error1 in r.text or error2 in r.text:
+            raise PermissionError('Matrícula ou senha não conferem')
+
+        print('> login ok')
+
+        print('> get home info')
+        inicio = s.get(base_url + '/index')
+
+        print('> get personal info')
+        cadastro = s.get(base_url + '/cadastro')
+
+        print('> get courses info')
+        rdm = s.get(base_url + '/rdm')
+
+    print('> sanitize')
+    return {
+        'home': BeautifulSoup(inicio.content, 'html.parser'),
+        'personal_data': BeautifulSoup(cadastro.content, 'html.parser'),
+        'rdm': BeautifulSoup(rdm.content, 'html.parser'),
+    }
 
 
-def load_user():
-    user_info = {'nome_usuario': input("Matricula: "), 'senha_usuario': input("Senha: ")}
+def get_all_data(user, password):
+    try:
+        print('> get dom')
+        _dom = request_dom(user, password)
 
-    return user_info
+        if _dom is None:
+            return None
 
+        print('> data ok')
+        return {
+            'profile': parser.sanitize_profile(_dom),
+            'courses': parser.sanitize_courses(_dom['rdm'])
+        }
 
-def login():
-    user = load_user()
-
-    user_xpath = "/html/body/div/div/div/form/div[2]/div/div/input[1]"
-    pass_xpath = "/html/body/div/div/div/form/div[2]/div/div/input[2]"
-    submit_xpath = "/html/body/div/div/div/form/div[2]/div/button"
-
-    driver.find_element_by_xpath(user_xpath).send_keys(user['nome_usuario'])
-    driver.find_element_by_xpath(pass_xpath).send_keys(user['senha_usuario'])
-    driver.find_element_by_xpath(submit_xpath).click()
-
-    driver.get(url_history)
-
-    if driver.current_url != url_history:
-        print("> Login fails\n> Exiting...")
-        driver.quit()
-        exit()
+    except PermissionError:
+        raise
 
 
 #################################################################################
 
 
-home_url = "https://academico.uepb.edu.br/ca/index.php/usuario/autenticar"
-url_history = "https://academico.uepb.edu.br/ca/index.php/alunos/historico"
-url_rdm = "https://academico.uepb.edu.br/ca/index.php/alunos/rdm"
-
-option = Options()
-option.headless = True
-
-print("> starting browser...")
-driver = webdriver.Firefox(options=option)
-print("> browser started")
-
-print("> getting url...")
-driver.get(home_url)
-
-print("> login...")
-login()
-print("> logged ")
-
-profile_css_selector = "#main-content > section > section"
-courses_data_selector = "#main-content > section > div:nth-child(3)"
-
-print("> Getting profile data...")
-profile_data = driver.find_element_by_css_selector(profile_css_selector).get_attribute("outerHTML")
-
-print("> Getting courses data...")
-driver.get(url_rdm)
-courses_data = driver.find_element_by_css_selector(courses_data_selector).get_attribute("outerHTML")
-
-print("> Parsing data")
-data = {'profile': parser.extract_profile(profile_data), 'courses': parser.extract_courses(courses_data)}
-
-print("> Closing browser...")
-driver.quit()
-print("> Browser closed")
-
-print("> Saving file...")
-save_file(data, 'data.json')
-print("> Files save 'data.json'")
-
-print("> All done")
+def save_file(info, filename):
+    with open(filename, 'w') as jp:
+        print('> save data to ' + filename)
+        json.dump(info, jp, ensure_ascii=False, indent=4)
